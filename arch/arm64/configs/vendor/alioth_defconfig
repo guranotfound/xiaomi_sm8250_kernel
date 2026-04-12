@@ -5113,18 +5113,12 @@ CONFIG_OPLUS_NANDSWAP=y
 
 #
 # KernelSU
-#
-CONFIG_KSU=y
-CONFIG_KSU_TAMPER_SYSCALL_TABLE=y
-CONFIG_KSU_SUSFS=y
-CONFIG_KSU_SUSFS_SUS_MAP=y
-CONFIG_KSU_SUSFS_SUS_MOUNT=y
-CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+# Handled by build script
+
 
 #
 # Baseband Guard
-#
-CONFIG_BBG=y
+# Handled by build script
 
 #
 # File systems
