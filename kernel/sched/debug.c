@@ -307,6 +307,14 @@ static char *task_group_path(struct task_group *tg)
 }
 #endif
 
+extern int entity_eligible(struct cfs_rq *cfs_rq, struct sched_entity *se);
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+# define debug_cfs_rq_of(p) ((p)->se.cfs_rq)
+#else
+# define debug_cfs_rq_of(p) (&task_rq(p)->cfs)
+#endif
+
 static void
 print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 {
@@ -318,7 +326,7 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 	SEQ_printf(m, "%15s %5d %9Ld.%06ld %c %9Ld.%06ld %c %9Ld.%06ld %9Ld.%06ld %9Ld %5d ",
 		p->comm, task_pid_nr(p),
 		SPLIT_NS(p->se.vruntime),
-		entity_eligible(cfs_rq_of(&p->se), &p->se) ? 'E' : 'N',
+		entity_eligible(debug_cfs_rq_of(p), &p->se) ? 'E' : 'N',
 		SPLIT_NS(p->se.deadline),
 		p->se.custom_slice ? 'S' : ' ',
 		SPLIT_NS(p->se.slice),
@@ -691,6 +699,7 @@ __initcall(init_sched_debug_procfs);
 
 #define __P(F)	SEQ_printf(m, "%-45s:%21Ld\n",	     #F, (long long)F)
 #define   P(F)	SEQ_printf(m, "%-45s:%21Ld\n",	     #F, (long long)p->F)
+#define __PS(S, V) SEQ_printf(m, "%-45s:%21Ld\n", S, (long long)(V))
 #define   PM(F, M) __PS(#F, p->F & (M))
 #define __PN(F)	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)F))
 #define   PN(F)	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)p->F))
