@@ -2,6 +2,8 @@
 # E404 Kernel Compile Script !
 # Put a fucking credit if you use something from here !
 
+NIDHIKERNEL_VERSION_STR='2.0.0-alpha'
+
 # Set kernel source directory and base directory to place tools
 KERNEL_DIR="$PWD"
 cd ..
@@ -31,54 +33,13 @@ case "$*" in
         ;;
 esac
 
-case "$*" in
-    *aosp*)
-        export PATH="$BASE_DIR/toolchains/aosp-clang/bin:$PATH"
-        TC="AOSP-Clang"
-        ;;
-    *neutron*)
-        export PATH="$BASE_DIR/toolchains/neutron-clang/bin:$PATH"
-        TC="Neutron-Clang"
-        ;;
-    *llvm*)
-        export PATH="$BASE_DIR/toolchains/llvm-clang/bin:$PATH"
-        TC="LLVM-Clang"
-        ;;
-    *lilium*)
-        export PATH="$BASE_DIR/toolchains/lilium-clang/bin:$PATH"
-        TC="Lilium-Clang"
-        ;;
-    *eva*)
-        GCC64_DIR="$BASE_DIR/toolchains/gcc/gcc-arm64/bin/"
-        GCC32_DIR="$BASE_DIR/toolchains/gcc/gcc-arm/bin/"
-        export PATH="$GCC64_DIR:$GCC32_DIR:/usr/bin:$PATH"
-        TC="EVA"
-        ;;
-    *gcc*)
-        GCC64_DIR="$BASE_DIR/toolchains/gcc/gcc-14.2.0-nolibc/aarch64-linux/bin"
-        GCC32_DIR="$BASE_DIR/toolchains/gcc/gcc-14.2.0-nolibc/arm-linux-gnueabi/bin"
-        export PATH="$GCC64_DIR:$GCC32_DIR:$PATH"
-        TC="GCC"
-        ;;
-    *)
-        if [[ -d "$BASE_DIR/toolchains/lilium-clang" ]]; then
-            export PATH="$BASE_DIR/toolchains/lilium-clang/bin:$PATH"
-            TC="Lilium-Clang"
-        elif [[ -d "$BASE_DIR/toolchains/aosp-clang" ]]; then
-            export PATH="$BASE_DIR/toolchains/aosp-clang/bin:$PATH"
-            TC="AOSP-Clang"
-        elif [[ -d "$BASE_DIR/toolchains/neutron-clang" ]]; then
-            export PATH="$BASE_DIR/toolchains/neutron-clang/bin:$PATH"
-            TC="Neutron-Clang"
-        elif [[ -d "$BASE_DIR/toolchains/llvm-clang" ]]; then
-            export PATH="$BASE_DIR/toolchains/llvm-clang/bin:$PATH"
-            TC="LLVM-Clang"
-        else
-            echo "-- !! Please provide a toolchain !! --"
-            exit 1
-        fi
-        ;;
-esac
+if [[ -d "$BASE_DIR/toolchains/lilium-clang" ]]; then
+    export PATH="$BASE_DIR/toolchains/lilium-clang/bin:$PATH"
+    TC="Lilium-Clang"
+else
+    echo "-- !! Please provide lilium-clang in toolchains folder !! --"
+    exit 1
+fi
 
 # Device selection using arrays
     declare -A DEVICE_MAP=(
@@ -107,18 +68,7 @@ K_IMG="$KERNEL_DIR/out/arch/arm64/boot/Image"
 K_DTBO="$KERNEL_DIR/out/arch/arm64/boot/dtbo.img"
 K_DTB="$KERNEL_DIR/out/arch/arm64/boot/dtb"
 
-# Telegram configuration - Load from external file
-TELEGRAM_CONFIG="$BASE_DIR/kernel_build"
-if [[ -f "$TELEGRAM_CONFIG" ]]; then
-    source "$TELEGRAM_CONFIG"
-    export TOKEN="$TELEGRAM_TOKEN"
-    export CHATID="$TELEGRAM_CHATID"
-else
-    echo "-- Warning: Telegram config file not found at $TELEGRAM_CONFIG --"
-    echo "-- Telegram notifications will be disabled --"
-    export TOKEN=""
-    export CHATID=""
-fi
+
 
 # Build environment
 export ARCH="arm64"
@@ -129,48 +79,6 @@ export TZ="Asia/Jakarta"
 rm -rf ../*E404R*.zip
 
 # Function definitions
-build_msg() {
-    local BRANCH=$(git rev-parse --abbrev-ref HEAD)
-    local COMMIT=$(git log -1 --pretty=format:'%s')
-    local MSG=$(cat <<EOF
-<b>Build Triggered !</b>
-<code>Device : $TARGET</code>
-<code>Branch : $BRANCH</code>
-<code>ToolCh : $TC</code>
-<b>Commit :</b>
-<code>$COMMIT</code>
-EOF
-)
-    send_msg "$MSG"
-}
-
-success_msg() {
-    local MSG=$(cat <<EOF
-<b>Build Success !</b>
-<code>Date : $(date +"%d %b %Y, %H:%M:%S")</code>
-<code>Time : $(($TIME_END / 60))m $(($TIME_END % 60))s</code>
-EOF
-)
-    send_msg "$MSG"
-}
-
-send_msg() {
-    curl -s -X POST \
-        "https://api.telegram.org/bot$TOKEN/sendMessage" \
-        -d chat_id="$CHATID" \
-        -d text="$1" \
-        -d "parse_mode=html" \
-        -d "disable_web_page_preview=true"
-}
-
-send_file() {
-    curl -s -X POST \
-        "https://api.telegram.org/bot$TOKEN/sendDocument" \
-        -F chat_id="$CHATID" \
-        -F document=@"$1" \
-        -F "parse_mode=html" \
-        -F "disable_web_page_preview=true"
-}
 
 clearbuild() {
     if [[ "$1" == "all" ]]; then
@@ -190,70 +98,34 @@ zipbuild() {
 }
 
 uploadbuild() {
-    send_file "$BASE_DIR/compile.log"
-    send_file "$BASE_DIR/$ZIP_NAME"
-    send_msg "<b>Kernel Flashable Zip Uploaded</b>"
+    echo "-- Kernel Flashable Zip Ready at $BASE_DIR/$ZIP_NAME --"
 }
 
 setupbuild() {
-    if [[ $TC == *Clang* ]]; then
-        BUILD_FLAGS=(
-            CC="ccache clang"
-            CROSS_COMPILE="aarch64-linux-gnu-"
-            CROSS_COMPILE_COMPAT="arm-linux-gnueabi-"
-            LLVM=1
-            LLVM_IAS=1
-            LD="ld.lld"
-            AR="llvm-ar"
-            NM="llvm-nm"
-            OBJCOPY="llvm-objcopy"
-            OBJDUMP="llvm-objdump"
-            STRIP="llvm-strip"
-        )
-        
-        # Export for defconfig (without ccache)
-        export CC="clang"
-        export CROSS_COMPILE="aarch64-linux-gnu-"
-        export CROSS_COMPILE_COMPAT="arm-linux-gnueabi-"
-        export LLVM=1
-        export LLVM_IAS=1
-        
-    elif [[ $TC == "EVA" ]]; then
-        BUILD_FLAGS=(
-            CC="ccache aarch64-elf-gcc"
-            CROSS_COMPILE="aarch64-elf-"
-            CROSS_COMPILE_COMPAT="arm-eabi-"
-            LD="aarch64-elf-ld.lld"
-            AR="llvm-ar"
-            NM="llvm-nm"
-            OBJCOPY="llvm-objcopy"
-            OBJDUMP="llvm-objdump"
-            OBJSIZE="llvm-size"
-            STRIP="llvm-strip"
-        )
-
-        # Export for defconfig (without ccache)
-        export CC="aarch64-elf-gcc"
-        export CROSS_COMPILE="aarch64-elf-"
-        export CROSS_COMPILE_COMPAT="arm-eabi-"
-    else
-        BUILD_FLAGS=(
-            CC="ccache aarch64-linux-gcc"
-            CROSS_COMPILE="aarch64-linux-"
-            CROSS_COMPILE_COMPAT="arm-linux-gnueabi-"
-        )
-
-        # Export for defconfig (without ccache)
-        export CC="aarch64-linux-gcc"
-        export CROSS_COMPILE="aarch64-linux-"
-        export CROSS_COMPILE_COMPAT="arm-linux-gnueabi-"
-    fi
+    BUILD_FLAGS=(
+        CC="ccache clang"
+        CROSS_COMPILE="aarch64-linux-gnu-"
+        CROSS_COMPILE_COMPAT="arm-linux-gnueabi-"
+        LLVM=1
+        LLVM_IAS=1
+        LD="ld.lld"
+        AR="llvm-ar"
+        NM="llvm-nm"
+        OBJCOPY="llvm-objcopy"
+        OBJDUMP="llvm-objdump"
+        STRIP="llvm-strip"
+    )
+    
+    # Export for defconfig (without ccache)
+    export CC="clang"
+    export CROSS_COMPILE="aarch64-linux-gnu-"
+    export CROSS_COMPILE_COMPAT="arm-linux-gnueabi-"
+    export LLVM=1
+    export LLVM_IAS=1
 }
 
 errorbuild() {
     echo "-- !! Kernel Build Error !! --"
-    send_file "$BASE_DIR/compile.log"
-    send_msg "<b>! Kernel Build Error !</b>"
     clearbuild
     exit 1
 }
@@ -263,19 +135,22 @@ compilebuild() {
 
     local make_flags=(-j"$(nproc)" O=out "${BUILD_FLAGS[@]}")
     
-    if [[ $TC == *Clang* ]]; then
-        echo "-- Compiling with Clang --"
-        make "${make_flags[@]}" || errorbuild
-    else
-        echo "-- Compiling with GCC --"
-        make "${make_flags[@]}" || errorbuild
-    fi
+    echo "-- Compiling with Clang --"
+    make "${make_flags[@]}" || errorbuild
 }
 
 makebuild() {
     # Config modifications
-    sed -i '/CONFIG_KALLSYMS=/c\CONFIG_KALLSYMS=n' out/.config
-    sed -i '/CONFIG_KALLSYMS_BASE_RELATIVE=/c\CONFIG_KALLSYMS_BASE_RELATIVE=n' out/.config
+    scripts/config --file out/.config \
+        -e OVERLAY_FS \
+        -e CONFIG_TMPFS_XATTR \
+        -e CONFIG_KALLSYMS \
+        -e CONFIG_KALLSYMS_ALL \
+        -d CONFIG_LOCALVERSION_AUTO \
+        --set-str CONFIG_LOCALVERSION "-Nidhi-${NIDHIKERNEL_VERSION_STR}"
+
+    #sed -i '/CONFIG_KALLSYMS=/c\CONFIG_KALLSYMS=n' out/.config
+    #sed -i '/CONFIG_KALLSYMS_BASE_RELATIVE=/c\CONFIG_KALLSYMS_BASE_RELATIVE=n' out/.config
             
     echo "-- Compiling Kernel --"
     export CCACHE_DIR="$BASE_DIR/ccache/.ccache_$TC"
@@ -305,8 +180,7 @@ while true; do
     echo " ╔════════════════════════════════════╗"
     echo " ║ 1. Export Defconfig                ║"
     echo " ║ 2. Start Build                     ║"
-    echo " ║ 3. Send File                       ║"
-    echo " ║ 4. Repack Last Build               ║"
+    echo " ║ 3. Repack Last Build               ║"
     echo " ║ f. Clean Out Directory             ║"
     echo " ║ fc. Clean Ccache                   ║"
     echo " ║ e. Exit                            ║"
@@ -322,21 +196,16 @@ while true; do
         2)
             TIME_START="$(date +"%s")"
             rm -f "$BASE_DIR/compile.log"
-            build_msg
             clearbuild
             makebuild 2>&1 | tee -a "$BASE_DIR/compile.log"
             zipbuild
             uploadbuild
             TIME_END=$(("$(date +"%s")" - "$TIME_START"))
-            success_msg
+            echo "-- Build Success! Date: $(date +"%d %b %Y, %H:%M:%S"), Time: $(($TIME_END / 60))m $(($TIME_END % 60))s --"
             ;;
         3)
-            echo "-- Sending to Telegram --"
-            send_file "$BASE_DIR/$ZIP_NAME"
-            ;;
-        4)
             zipbuild
-            send_file "$BASE_DIR/$ZIP_NAME"
+            echo "-- Kernel Flashable Zip Ready at $BASE_DIR/$ZIP_NAME --"
             ;;
         f)
             clearbuild "all"
