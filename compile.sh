@@ -2,7 +2,7 @@
 # E404 Kernel Compile Script !
 # Put a fucking credit if you use something from here !
 
-NIDHIKERNEL_VERSION_STR='2.0.0-alpha'
+NIDHIKERNEL_VERSION_STR='2.0.0'
 
 # Set kernel source directory and base directory to place tools
 KERNEL_DIR="$PWD"
@@ -76,7 +76,7 @@ export SUBARCH="arm64"
 export TZ="Asia/Jakarta"
 
 # Clean previous builds
-rm -rf ../*NidhiKernel*.zip
+# rm -rf ../*NidhiKernel*.zip
 
 # Function definitions
 
