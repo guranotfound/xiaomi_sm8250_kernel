@@ -1801,44 +1801,6 @@ static struct dentry *__lookup_slow(const struct qstr *name, struct dentry *dir,
 	struct dentry *dentry, *old;
 	struct inode *inode = dir->d_inode;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
-
-	/* Don't go there if it's already dead */
-	if (unlikely(IS_DEADDIR(inode)))
-		return ERR_PTR(-ENOENT);
-again:
-	dentry = d_alloc_parallel(dir, name, &wq);
-	if (IS_ERR(dentry))
-		return dentry;
-	if (unlikely(!d_in_lookup(dentry))) {
-		if (!(flags & LOOKUP_NO_REVAL)) {
-			int error = d_revalidate(dentry, flags);
-			if (unlikely(error <= 0)) {
-				if (!error) {
-					d_invalidate(dentry);
-					dput(dentry);
-					goto again;
-				}
-				dput(dentry);
-				dentry = ERR_PTR(error);
-			}
-		}
-	} else {
-		old = inode->i_op->lookup(inode, dentry, flags);
-		d_lookup_done(dentry);
-		if (unlikely(old)) {
-			dput(dentry);
-			dentry = old;
-		}
-	}
-	return dentry;
-}
-
-static struct dentry *__lookup_slow(const struct qstr *name, struct dentry *dir,
-				    unsigned int flags)
-{
-	struct dentry *dentry, *old;
-	struct inode *inode = dir->d_inode;
-	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 #ifdef CONFIG_KSU_SUSFS_SUS_PATH
 	bool found_sus_path = false;
 	bool is_nd_flags_lookup_last = (flags & ND_FLAGS_LOOKUP_LAST);
@@ -1898,6 +1860,18 @@ retry:
 	}
 #endif
 	return dentry;
+}
+
+static struct dentry *lookup_slow(const struct qstr *name,
+				  struct dentry *dir,
+				  unsigned int flags)
+{
+	struct inode *inode = dir->d_inode;
+	struct dentry *res;
+	inode_lock_shared(inode);
+	res = __lookup_slow(name, dir, flags);
+	inode_unlock_shared(inode);
+	return res;
 }
 
 static inline int may_lookup(struct nameidata *nd)
@@ -5072,9 +5046,6 @@ extern int susfs_open_redirect_spoof_vfs_readlink(struct inode *inode,
 int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
 	struct inode *inode = d_inode(dentry);
-#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-	int res;
-#endif
 	DEFINE_DELAYED_CALL(done);
 	const char *link;
 	int res;
