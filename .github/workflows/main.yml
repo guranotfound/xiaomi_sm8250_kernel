@@ -37,12 +37,23 @@ jobs:
           git submodule update --remote --merge KernelSU-Next || true
 
       # 5. Kéo Toolchain (Đặt ở thư mục gốc để script nhận diện đúng BASE_DIR)
-      - name: 🛠️ Kéo Lilium-Clang Toolchain
+  # 5. Kéo Toolchain từ hòm Release
+      - name: 🛠️ Kéo Lilium-Clang Toolchain (Bản Release)
         run: |
-          mkdir -p toolchains
-          echo "Đang kéo Lilium-Clang về..."
-          # Bác nhớ thay bằng cái link tải Lilium-Clang hàng xịn của bác
-          git clone --depth=1 https://github.com/Panda-Softworks/lilium-clang.git toolchains/lilium-clang
+          mkdir -p toolchains/lilium-clang
+          echo "Đang vác Lilium-Clang từ kho Release về..."
+          
+          # BÁC THAY ĐƯỜNG LINK TẢI FILE NÉN (.tar.gz) VÀO DÒNG NÀY:
+          wget https://github.com/liliumproject/clang/releases/download/20250912/lilium_clang-20250912.tar.gz -O toolchain.tar.gz
+          
+          echo "Đang bung nén..."
+          # Giải nén và tống hết ruột gan vào thư mục lilium-clang
+          # Cờ --strip-components=1 giúp lột bỏ cái thư mục gốc trong file nén, đổ thẳng thư mục bin/ vào đúng vị trí
+          tar -xf toolchain.tar.gz -C toolchains/lilium-clang --strip-components=1
+          
+          # Dọn rác file nén
+          rm toolchain.tar.gz
+          echo "Lắp ráp Toolchain hoàn tất!"
 
       # 6. Kéo AnyKernel3 (Cũng để ở thư mục gốc)
       - name: 📦 Kéo AnyKernel3
