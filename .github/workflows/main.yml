@@ -62,15 +62,16 @@ jobs:
           git clone --depth=1 https://github.com/osm0sis/AnyKernel3.git AnyKernel3
 
       # 7. Khởi động lò bát quái và Bypass cái Menu
+      # 7. Khởi động lò bát quái và Bypass cái Menu
       - name: 🚀 Gọi Script Compile.sh
         working-directory: kernel_src
         run: |
           chmod +x compile.sh
           echo "Bắt đầu nhồi nhét Alioth vào script..."
           
-          # PHÉP THUẬT Ở ĐÂY:
-          # Truyền phím "2" (Start Build) rồi truyền phím "e" (Exit) để vượt mặt cái Menu chặn cửa!
-          echo -e "2\ne\n" | ./compile.sh alioth
+          # PHÉP THUẬT NÂNG CẤP:
+          # Gõ 1 (Tạo config) -> Gõ 2 (Build Kernel) -> Gõ e (Thoát)
+          echo -e "1\n2\ne\n" | ./compile.sh alioth
 
       # 8. Húp trọn cái File ZIP Flashable
       - name: 📤 Gom Hàng (Upload Flashable ZIP)
