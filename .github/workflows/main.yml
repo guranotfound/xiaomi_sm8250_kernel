@@ -29,38 +29,40 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 1
 
-      # 4. Tráo link (URL) KSU-Next sang một bến đỗ mới
+      # 4. Tráo link URL KSU-Next (Trục xuất linh hồn cũ)
       - name: ♻️ Đổi Link URL KSU-Next Submodule
         working-directory: kernel_src
         run: |
-          echo "Đang làm phép tráo đổi thân xác KSU-Next..."
+          echo "Đang lập đàn trừ tà, xóa sạch trí nhớ Git về KSU cũ..."
           
-          # 1. BÁC THAY CÁI LINK GIT MỚI VÀO DÒNG DƯỚI ĐÂY:
-          # Ví dụ: https://github.com/phapsu/KernelSU-Next-ProMax.git
+          # 1. BÁC ĐIỀN LINK VÀ NHÁNH MỚI VÀO ĐÂY:
           NEW_URL="https://github.com/sidex15/KernelSU-Next.git"
+          NEW_BRANCH="legacy-susfs-v2" # Ví dụ: main, hoặc legacy-susfs-v2 nếu repo mới cũng dùng tên này
           
-          # 2. Ép file cấu hình git đổi đường dẫn sang link mới
+          # 2. Rút ống thở: Hủy đăng ký submodule hiện tại
+          git submodule deinit -f KernelSU-Next || true
+          
+          # 3. Đào mả: Xóa sạch dữ liệu ẩn và thư mục vật lý
+          rm -rf .git/modules/KernelSU-Next
+          rm -rf KernelSU-Next
+          
+          # 4. Ghi giấy khai sinh mới: Ép URL và Nhánh mới vào file config
           git config -f .gitmodules submodule.KernelSU-Next.url "$NEW_URL"
+          git config -f .gitmodules submodule.KernelSU-Next.branch "$NEW_BRANCH"
           
-          # (Tùy chọn) Nếu cái link mới đó bác muốn trỏ vào nhánh cụ thể luôn thì mở khóa dòng này:
-          # git config -f .gitmodules submodule.KernelSU-Next.branch "legacy-susfs-v2"
-          
-          # 3. Đồng bộ lại cấu hình hệ thống (Bắt buộc phải có để git nó nhận link mới)
+          # 5. Đồng bộ cấu hình
           git submodule sync KernelSU-Next
           
-          # 4. Xóa sạch thư mục cũ để tránh tàn dư (Hố bom hay dính conflict ở đây)
-          rm -rf KernelSU-Next/*
-          rm -rf KernelSU-Next/.git
-          
-          # 5. Kéo data từ cái link mới tinh về
+          # 6. Gọi hồn đồ mới về (Trắng tinh khôi 100%)
           git submodule update --init --remote --force KernelSU-Next
           
-          echo "Đã tráo link thành công! Check xem đồ mới về chưa:"
+          echo "Nhập hồn thành công! Đồ mới đã về làng:"
           cd KernelSU-Next
           git remote -v
+          git branch --show-current
           cd ..
 
-      # 5. Kéo Toolchain (Đặt ở thư mục gốc để script nhận diện đúng BASE_DIR)
+      
   # 5. Kéo Toolchain từ hòm Release
       - name: 🛠️ Kéo Lilium-Clang Toolchain (Bản Release)
         run: |
