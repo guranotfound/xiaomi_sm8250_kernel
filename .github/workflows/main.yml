@@ -1,0 +1,70 @@
+name: Compile NidhiKernel (Alioth)
+
+on:
+  workflow_dispatch: # Cho phép bấm nút Build bằng tay
+
+jobs:
+  build-kernel:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Dọn dẹp máy chủ GitHub để lấy chỗ chứa Kernel
+      - name: 🧹 Dọn dẹp không gian
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt-get clean
+
+      # 2. Cài đồ nghề thiết yếu (Tool build)
+      - name: ⚙️ Cài đặt Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf liblz4-tool zip zlib1g-dev python3
+
+      # 3. Kéo mã nguồn Kernel (Vào hẳn một thư mục riêng tên là kernel_src)
+      - name: 📥 Kéo Source Kernel
+        uses: actions/checkout@v4
+        with:
+          path: 'kernel_src'
+          submodules: 'recursive'
+          fetch-depth: 1
+
+      # 4. Ép KSU-Next hút cần (Update lên bản commit mới nhất)
+      - name: ♻️ Cập nhật KSU-Next Submodule
+        working-directory: kernel_src
+        run: |
+          echo "Đang ép KSU-Next nôn ra bản mới nhất..."
+          # LƯU Ý: Nếu thư mục submodule của bác tên khác thì nhớ đổi chữ KernelSU-Next nhé
+          git submodule update --remote --merge KernelSU-Next || true
+
+      # 5. Kéo Toolchain (Đặt ở thư mục gốc để script nhận diện đúng BASE_DIR)
+      - name: 🛠️ Kéo Lilium-Clang Toolchain
+        run: |
+          mkdir -p toolchains
+          echo "Đang kéo Lilium-Clang về..."
+          # Bác nhớ thay bằng cái link tải Lilium-Clang hàng xịn của bác
+          git clone --depth=1 https://github.com/Panda-Softworks/lilium-clang.git toolchains/lilium-clang
+
+      # 6. Kéo AnyKernel3 (Cũng để ở thư mục gốc)
+      - name: 📦 Kéo AnyKernel3
+        run: |
+          echo "Đang vác thớt AnyKernel3 về..."
+          git clone --depth=1 https://github.com/osm0sis/AnyKernel3.git AnyKernel3
+
+      # 7. Khởi động lò bát quái và Bypass cái Menu
+      - name: 🚀 Gọi Script Compile.sh
+        working-directory: kernel_src
+        run: |
+          chmod +x compile.sh
+          echo "Bắt đầu nhồi nhét Alioth vào script..."
+          
+          # PHÉP THUẬT Ở ĐÂY:
+          # Truyền phím "2" (Start Build) rồi truyền phím "e" (Exit) để vượt mặt cái Menu chặn cửa!
+          echo -e "2\ne\n" | ./compile.sh alioth
+
+      # 8. Húp trọn cái File ZIP Flashable
+      - name: 📤 Gom Hàng (Upload Flashable ZIP)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NidhiKernel-Alioth-KSUNext
+          # Vì script của bác lưu file ZIP ra BASE_DIR (thư mục gốc), nên ta sẽ nhặt nó ở đây
+          path: ./*.zip
