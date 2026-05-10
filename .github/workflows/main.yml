@@ -29,13 +29,36 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 1
 
-      # 4. Ép KSU-Next hút cần (Update lên bản commit mới nhất)
-      - name: ♻️ Cập nhật KSU-Next Submodule
+      # 4. Tráo link (URL) KSU-Next sang một bến đỗ mới
+      - name: ♻️ Đổi Link URL KSU-Next Submodule
         working-directory: kernel_src
         run: |
-          echo "Đang ép KSU-Next nôn ra bản mới nhất..."
-          # LƯU Ý: Nếu thư mục submodule của bác tên khác thì nhớ đổi chữ KernelSU-Next nhé
-          git submodule update --remote --merge KernelSU-Next || true
+          echo "Đang làm phép tráo đổi thân xác KSU-Next..."
+          
+          # 1. BÁC THAY CÁI LINK GIT MỚI VÀO DÒNG DƯỚI ĐÂY:
+          # Ví dụ: https://github.com/phapsu/KernelSU-Next-ProMax.git
+          NEW_URL="https://github.com/sidex15/KernelSU-Next.git"
+          
+          # 2. Ép file cấu hình git đổi đường dẫn sang link mới
+          git config -f .gitmodules submodule.KernelSU-Next.url "$NEW_URL"
+          
+          # (Tùy chọn) Nếu cái link mới đó bác muốn trỏ vào nhánh cụ thể luôn thì mở khóa dòng này:
+          # git config -f .gitmodules submodule.KernelSU-Next.branch "legacy-susfs-v2"
+          
+          # 3. Đồng bộ lại cấu hình hệ thống (Bắt buộc phải có để git nó nhận link mới)
+          git submodule sync KernelSU-Next
+          
+          # 4. Xóa sạch thư mục cũ để tránh tàn dư (Hố bom hay dính conflict ở đây)
+          rm -rf KernelSU-Next/*
+          rm -rf KernelSU-Next/.git
+          
+          # 5. Kéo data từ cái link mới tinh về
+          git submodule update --init --remote --force KernelSU-Next
+          
+          echo "Đã tráo link thành công! Check xem đồ mới về chưa:"
+          cd KernelSU-Next
+          git remote -v
+          cd ..
 
       # 5. Kéo Toolchain (Đặt ở thư mục gốc để script nhận diện đúng BASE_DIR)
   # 5. Kéo Toolchain từ hòm Release
